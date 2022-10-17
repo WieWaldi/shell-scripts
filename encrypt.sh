@@ -67,35 +67,12 @@ if [[ "${BASH_FRMWRK_VER}" -lt "${BASH_FRMWRK_MINVER}" ]]; then
 fi
 
 # +----- Variables ------------------------------------------------------------+
+export file_extension="crypt"
+export gnupg="/usr/bin/gpg"
+export algo="AES256"
 
 # +----- Functions ------------------------------------------------------------+
-output_Variable() {
-    __echo_Title "VAR"
-    __echo_Left "cdir:"
-    __echo_Right "${cdir}"
-    __echo_Left "base_dir:"
-    __echo_Right "${base_dir}"
-    __echo_Left "scriptname:"
-    __echo_Right "${scriptname}"
-    __echo_Left "scriptdir:"
-    __echo_Right "${scriptdir}"
-    __echo_Left "BASH_SOURCE:"
-    __echo_Right "${BASH_SOURCE}"
-    __echo_Left "demo:"
-    __echo_Right "${demo}"
-    __echo_Left "framework_width:"
-    __echo_Right "${framework_width}"
-    __echo_Left "option:"
-    __echo_Right "${option}"
-}
 
-encrypt_File() {
-    echo "Enc File"
-}
-
-encrypt_Directory() {
-    echo "Enc Dir"
-}
 # +----- Option Handling ------------------------------------------------------+
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -133,7 +110,7 @@ fi
 
 if [[ -e "${1}" ]]; then
     if [[ -f "${1}" ]]; then
-        echo "File"
+        __echo_Title "Encrypting single file"
         file_in="${1}"
         file_out="${file_in}.${file_extension}"
         purge_file_in="$(__read_Antwoord_YN "Purge source file?")"
@@ -143,31 +120,77 @@ if [[ -e "${1}" ]]; then
         echo -e -n "\n"
         if [[ "${password_1}" = "${password_2}" ]]; then
             passphrase="${password_1}"
+            __echo_Left "Encrypting file"
+            ${gnupg} --no-tty --batch --passphrase ${passphrase} --symmetric --armor --cipher-algo ${algo} --output ${file_out} ${file_in}
+            if [[ $? = "0" ]]; then
+                __echo_Done
+            else
+                __echo_Failed
+            fi
+            if [[ "${purge_file_in}" = "yes" ]]; then
+                __echo_Left "Purging source file"
+                rm "${file_in}"
+                if [[ $? = "0" ]]; then
+                    __echo_Done
+                else
+                    __echo_Failed
+                fi
+            fi
         else
-            echo_Error_Msg "You messed up!"
-            echo_Title "Done"
+            __echo_Error_Msg "Passphrase do not match."
+            exit 1
+        fi
+    fi
+
+    if [[ -d "${1}" ]]; then
+        __echo_Title "Encrypting directory"
+        directory_in="${1}"
+        directory_out="${directory_in}.tar.${file_extension}"
+        purge_directory_in="$(__read_Antwoord_YN "Purge source directory?")"
+        compress_directory_in="$(__read_Antwoord_YN "Compress archive?")"
+        password_1="$(__read_Antwoord_Secretly "Passphrase        : ")"
+        echo -e -n "\n"
+        password_2="$(__read_Antwoord_Secretly "Confirm Passphrase: ")"
+        echo -e -n "\n"
+        if [[ "${password_1}" = "${password_2}" ]]; then
+            passphrase="${password_1}"
+            __echo_Left "Storing directory into tar file"
+            tar -cf "${directory_in}.tar" "${directory_in}"
+            if [[ $? = "0" ]]; then
+                __echo_Done
+            else
+                __echo_Failed
+                exit 1
+            fi
+            g
+            __echo_Left "Encrypting tar archive"
+            ${gnupg} --no-tty --batch --passphrase ${passphrase} --symmetric --armor --cipher-algo ${algo} --output "${directory_out}" "${directory_in}.tar"
+            if [[ $? = "0" ]]; then
+                __echo_Done
+            else
+                __echo_Failed
+                exit 1
+            fi
+            rm -r "${directory_in}.tar"
+            if [[ "${purge_directory_in}" = "yes" ]]; then
+                __echo_Left "Purging source directory"
+                rm -r "${directory_in}"
+                if [[ $? = "0" ]]; then
+                    __echo_Done
+                else
+                    __echo_Failed
+                fi
+            fi
+        else
+            __echo_Error_Msg "Passphrase do not match."
             exit 1
         fi
 
-    fi
-    if [[ -d "${1}" ]]; then
-        echo "Directory"
-        directory_in="${1}"
-        directory_out="${directory_in}.${file_extension}"
     fi
 else
     __exit_Usage 10 "File not found."
 fi
 
-
-
-
-
-output_Variable
-
-echo "Und ${1}"
-
+__echo_Title "Done"
 # +----- End ------------------------------------------------------------------+
-echo -e "\n\n"
 exit 0
-

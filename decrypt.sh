@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #
 # +----------------------------------------------------------------------------+
-# | example.sh                                                                 |
+# | decrypt.sh                                                                 |
 # +----------------------------------------------------------------------------+
 # |       Usage: ---                                                           |
-# | Description: Example script to show off how bash_framework.sh works        |
+# | Description: Script to decrypt files using gnupg                           |
 # |    Requires: bash_framework.sh                                             |
 # |       Notes: ---                                                           |
 # |      Author: Waldemar Schroeer                                             |
 # |     Company: Rechenzentrum Amper                                           |
-# |     Version: 3                                                             |
-# |     Created: 10.08.2022                                                    |
+# |     Version: 0.1                                                           |
+# |     Created: 14.10.2022                                                    |
 # |    Revision: ---                                                           |
 # |                                                                            |
 # | Copyright © 2022 Waldemar Schroeer                                         |
@@ -24,15 +24,12 @@
 
 # +----- Help and Usage (Must start at line 25 and must stop with "######" ----+
 #
-# example.sh [options]
+# decrypt.sh [file]
 #
-# This is an example on how to use functions from bash-framework.sh
+# Simple bash script to decrypt files with GnuPG    
 #
 # Options...
-#  -d, --demo           Run the demo, otherwise exit with an error message
 #  -h, --help           Print out help
-#  -w, --width          Width to use
-#  -o, --option         Just an option
 #
 #####
 
@@ -70,27 +67,11 @@ if [[ "${BASH_FRMWRK_VER}" -lt "${BASH_FRMWRK_MINVER}" ]]; then
 fi
 
 # +----- Variables ------------------------------------------------------------+
+export file_extension="crypt"
+export gnupg="/usr/bin/gpg"
+export algo="AES256"
 
 # +----- Functions ------------------------------------------------------------+
-output_Variable() {
-    __echo_Title "VAR"
-    __echo_Left "cdir:"
-    __echo_Right "${cdir}"
-    __echo_Left "base_dir:"
-    __echo_Right "${base_dir}"
-    __echo_Left "scriptname:"
-    __echo_Right "${scriptname}"
-    __echo_Left "scriptdir:"
-    __echo_Right "${scriptdir}"
-    __echo_Left "BASH_SOURCE:"
-    __echo_Right "${BASH_SOURCE}"
-    __echo_Left "demo:"
-    __echo_Right "${demo}"
-    __echo_Left "framework_width:"
-    __echo_Right "${framework_width}"
-    __echo_Left "option:"
-    __echo_Right "${option}"
-}
 
 # +----- Option Handling ------------------------------------------------------+
 while [[ $# -gt 0 ]]; do
@@ -122,50 +103,40 @@ while [[ $# -gt 0 ]]; do
 done
 
 # +----- Main -----------------------------------------------------------------+
-# clear
-if [[ "${demo}" != "True" ]]; then
-    __exit_Usage 10 "Not in demo mode"
+
+if [[ "$#" = "0" ]]; then
+    __exit_Usage 10 "No file name specified."
 fi
 
-__display_Text_File blue ${scriptdir}/notice.txt
+__echo_Title "Decrypting file"
+file_in="${1}"
 
-if [[ "$(__read_Antwoord_YN "Do you want to proceed?")" = "no" ]]; then
-    __exit_Error 10 "You don't want to proceed!"
+if ! [[ "${file_in: -6}" = ".crypt" ]]; then
+    __echo_Error_Msg "Not a .crypt file. I'm not even trying."
+    __echo_Title "Done"
+    exit 1
 fi
 
-__echo_Title "Example Start"
-__echo_Left "Let me start up."
-__echo_OK
-__echo_Left "Some Text on the left hand side."
-__echo_Done
-__echo_Left "A bit more Text on the left hand side."
-__echo_Skipped
-__echo_Left "Some more Text."
-__echo_Failed
+file_out="${file_in%.crypt}"
+if [[ -f "${file_out}" ]]; then
+    __echo_Error_Msg "Output file exists."
+    __echo_Title "Done"
+    exit 1
+fi
 
-GoAhead="$(__read_Antwoord_YN "Shall we conitnue?")"
-__echo_Left "We shall continue..."
-if [[ "${GoAhead}" = "yes" ]]; then
-    # Do some work
+passphrase="$(__read_Antwoord_Secretly "Passphrase: ")"
+echo -e -n "\n"
+
+__echo_Left "Decrypting \"${file_in}\""
+${gnupg} --no-tty --batch --passphrase ${passphrase} --decrypt --cipher-algo ${algo} --output "${file_out}" "${file_in}" >/dev/null 2>&1
+if [[ $? = "0" ]]; then
     __echo_Done
 else
-    __echo_Skipped
+    __echo_Failed
+    __echo_Title "Done"
+    exit 1
 fi
 
-GoAhead="$(__read_Antwoord_YN "Check File Name?")"
-if [[ "${GoAhead}" = "yes" ]]; then
-    read -p "File Name: " filename
-    filenamecode=$(__check_File_Name $(echo ${filename}))
-    __echo_Left "Result is ${filenamecode}"
-    __echo_Done
-
-else
-    __echo_Left "Check File Name..."
-    __echo_Skipped
-fi
-
-__echo_Title "Example End"
+__echo_Title "Done"
 # +----- End ------------------------------------------------------------------+
-echo -e "\n\n"
 exit 0
-
