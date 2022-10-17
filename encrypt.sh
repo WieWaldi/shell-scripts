@@ -26,7 +26,9 @@
 #
 # encrypt.sh [file]
 #
-# Simple bash script to encrypt files and directories with GnuPG    
+# Simple bash script to encrypt files and directories with GnuPG.
+# If a directory is specified it will get stored in a tar archive and
+# then compressed using Gzip
 #
 # Options...
 #  -h, --help           Print out help
@@ -70,6 +72,8 @@ fi
 export file_extension="crypt"
 export gnupg="/usr/bin/gpg"
 export algo="AES256"
+export tar="/usr/bin/tar"
+export gzip="/usr/bin/gzip"
 
 # +----- Functions ------------------------------------------------------------+
 
@@ -105,6 +109,16 @@ done
 # +----- Main -----------------------------------------------------------------+
 if ! command -v "${gnupg}" &> /dev/null; then
     __echo_Error_Msg "GnuPG not found"
+    exit 1
+fi
+
+if ! command -v "${tar}" &> /dev/null; then
+    __echo_Error_Msg "tar (Tap Archiver) not found"
+    exit 1
+fi
+
+if ! command -v "${gzip}" &> /dev/null; then
+    __echo_Error_Msg "Gzip not found"
     exit 1
 fi
 
@@ -149,9 +163,8 @@ if [[ -e "${1}" ]]; then
     if [[ -d "${1}" ]]; then
         __echo_Title "Encrypting directory"
         directory_in="${1}"
-        directory_out="${directory_in}.tar.${file_extension}"
+        directory_out="${directory_in}.tar.gz.${file_extension}"
         purge_directory_in="$(__read_Antwoord_YN "Purge source directory?")"
-        compress_directory_in="$(__read_Antwoord_YN "Compress archive?")"
         password_1="$(__read_Antwoord_Secretly "Passphrase        : ")"
         echo -e -n "\n"
         password_2="$(__read_Antwoord_Secretly "Confirm Passphrase: ")"
@@ -159,23 +172,30 @@ if [[ -e "${1}" ]]; then
         if [[ "${password_1}" = "${password_2}" ]]; then
             passphrase="${password_1}"
             __echo_Left "Storing directory into tar file"
-            tar -cf "${directory_in}.tar" "${directory_in}"
+            ${tar} -cf "${directory_in}.tar" "${directory_in}"
             if [[ $? = "0" ]]; then
                 __echo_Done
             else
                 __echo_Failed
                 exit 1
             fi
-            g
+            __echo_Left "Compressing tar archive"
+            ${gzip} --best "${directory_in}.tar"
+            if [[ $? = "0" ]]; then
+                __echo_Done
+            else
+                __echo_Failed
+                exit 1
+            fi
             __echo_Left "Encrypting tar archive"
-            ${gnupg} --no-tty --batch --passphrase ${passphrase} --symmetric --armor --cipher-algo ${algo} --output "${directory_out}" "${directory_in}.tar"
+            ${gnupg} --no-tty --batch --passphrase ${passphrase} --symmetric --armor --cipher-algo ${algo} --output "${directory_out}" "${directory_in}.tar.gz"
             if [[ $? = "0" ]]; then
                 __echo_Done
             else
                 __echo_Failed
                 exit 1
             fi
-            rm -r "${directory_in}.tar"
+            rm -r "${directory_in}.tar.gz"
             if [[ "${purge_directory_in}" = "yes" ]]; then
                 __echo_Left "Purging source directory"
                 rm -r "${directory_in}"
