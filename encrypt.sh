@@ -103,6 +103,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 # +----- Main -----------------------------------------------------------------+
+if ! command -v "${gnupg}" &> /dev/null; then
+    __echo_Error_Msg "GnuPG not found"
+    exit 1
+fi
 
 if [[ "$#" = "0" ]]; then
     __exit_Usage 10 "No file name specified."
