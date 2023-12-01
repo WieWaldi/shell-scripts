@@ -17,3 +17,5 @@
 [unix.com](https://www.unix.com/shell-programming-and-scripting/165656-html-format-email-attachment-unix.html) - html format email with attachment in unix  
 [w3.org](https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html) - The Multipart Content-Type  
 
+## yt-dmenu.sh
+[StackExchange](https://askubuntu.com/questions/486297/how-to-select-video-quality-from-youtube-dl) - How to select video quality from youtube-dl?
